@@ -56,7 +56,8 @@
       else if (!kind && !prop(s, 'validForMemberTier')) price ??= num(prop(s, 'price'));
       r.currency ??= str(prop(s, 'priceCurrency'));
     }
-    r.price = price;
+    // A lone ListPrice (no current price) is the selling price, not a strikethrough.
+    r.price = price ?? strike;
     r.strikePrice = strike > price ? strike : undefined;
     return r;
   };
