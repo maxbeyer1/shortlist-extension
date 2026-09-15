@@ -258,7 +258,7 @@ tab is alive as long as you're looking at it.
 
 **Then actually use it for the real session.** Everything below is polish on a working tool.
 
-### Stage 2 — Debug view
+### Stage 2 — Debug view (DEFFERRED)
 
 Small but do it early: a toggle on each card showing what the extractor found and which source won
 each field (`_src`). When a card looks wrong you diagnose in 2 seconds instead of opening devtools.
