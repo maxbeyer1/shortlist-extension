@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Shortlist</title>
+<style>
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: #111; background: #f6f6f6; }
+  header { display: flex; gap: 10px; align-items: flex-start; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e3e3e3; position: sticky; top: 0; z-index: 1; }
+  textarea { flex: 1; height: 56px; font: inherit; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; resize: vertical; }
+  button { font: inherit; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover { background: #f0f0f0; }
+  .side { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #666; min-width: 180px; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; padding: 16px; }
+  .card { position: relative; background: #fff; border: 1px solid #e3e3e3; border-radius: 8px; overflow: hidden; }
+  .card.pending { opacity: .55; }
+  .card a { display: block; color: inherit; text-decoration: none; }
+  .img { aspect-ratio: 3 / 4; background: #eee; }
+  .img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .body { padding: 10px; }
+  .brand { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .03em; }
+  .title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .price { margin-top: 4px; font-weight: 600; }
+  .price s { margin-left: 6px; color: #999; font-weight: 400; }
+  .badge { margin-left: 6px; font-size: 11px; font-weight: 500; color: #b33; }
+  .sizes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .sizes span { font-size: 11px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 4px; }
+  .sizes .out { color: #bbb; border-color: #eee; text-decoration: line-through; }
+  .meta { margin-top: 6px; font-size: 12px; color: #888; }
+  .err { color: #b33; }
+  .x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; line-height: 1; border-radius: 12px; background: rgba(255,255,255,.9); opacity: 0; }
+  .card:hover .x { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <textarea id="urls" placeholder="Paste product URLs, one per line (⌘⏎ to add)"></textarea>
+  <div class="side">
+    <button id="add">Add</button>
+    <span id="status"></span>
+    <span><span id="count">0</span> items · <a href="#" id="clear">clear all</a></span>
+  </div>
+</header>
+<main id="grid"></main>
+<script src="dashboard.js"></script>
+</body>
+</html>
