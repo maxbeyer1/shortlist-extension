@@ -1,5 +1,4 @@
-const SETTLE_MS = 500;   // after load, before first extract
-const RETRY_MS = 1500;   // extra wait if no product JSON-LD yet (late-rendered markup)
+const POLL_MS = 400;     // between extraction attempts while a page loads
 const TIMEOUT_MS = 8000; // hard cap per URL
 const SAVE_MS = 500;
 
@@ -88,11 +87,12 @@ async function pump() {
 }
 
 async function hydrate(item) {
+  const started = Date.now();
   let tabId;
   try {
     ({ id: tabId } = await chrome.tabs.create({ url: item.url, active: false }));
     liveTab = tabId;
-    const { url, ...data } = await Promise.race([extractIn(tabId), timeout()]);
+    const { url, ...data } = await extractIn(tabId);
     Object.assign(item, data);
   } catch (e) {
     item.error = e.message ?? String(e);
@@ -100,42 +100,30 @@ async function hydrate(item) {
   item.hydratedAt = Date.now();
   liveTab = undefined;
   if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
+  console.log(`${item.domain} ${Date.now() - started}ms`, item.error ?? item._src, item._ld);
 }
 
+// Poll the extractor without waiting for the page to finish loading — JSON-LD and OG tags are in
+// the <head> and appear long before window.load (trackers, ads, lazy images). Return as soon as
+// product JSON-LD is found; at the deadline settle for the best partial result.
 async function extractIn(tabId) {
-  await loaded(tabId);
-  await sleep(SETTLE_MS);
-  let data = await run(tabId);
-  if (!Object.values(data._src).includes('ld')) {
-    await sleep(RETRY_MS);
-    data = await run(tabId);
+  const deadline = Date.now() + TIMEOUT_MS;
+  let best, lastError;
+  while (Date.now() < deadline) {
+    try {
+      const [{ result }] = await chrome.scripting.executeScript({ target: { tabId }, files: ['extract.js'], injectImmediately: true });
+      if (Object.values(result._src).includes('ld')) return result;
+      if (result.title) best = result;
+    } catch (e) {
+      lastError = e; // document not committed yet, or a page we can't inject into
+    }
+    await sleep(POLL_MS);
   }
-  return data;
-}
-
-async function run(tabId) {
-  const [{ result }] = await chrome.scripting.executeScript({ target: { tabId }, files: ['extract.js'] });
-  return result;
-}
-
-// Resolves when the tab finishes loading, or when it's closed (timeout path).
-function loaded(tabId) {
-  return new Promise(resolve => {
-    const done = () => {
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      chrome.tabs.onRemoved.removeListener(onRemoved);
-      resolve();
-    };
-    const onUpdated = (id, info) => { if (id === tabId && info.status === 'complete') done(); };
-    const onRemoved = id => { if (id === tabId) done(); };
-    chrome.tabs.onUpdated.addListener(onUpdated);
-    chrome.tabs.onRemoved.addListener(onRemoved);
-    chrome.tabs.get(tabId).then(t => { if (t.status === 'complete') done(); });
-  });
+  if (best) return best;
+  throw lastError ?? new Error('timed out');
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const timeout = () => sleep(TIMEOUT_MS).then(() => { throw new Error('timed out'); });
 
 // ---- rendering ----
 
