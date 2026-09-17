@@ -32,23 +32,41 @@ function canonical(raw) {
   return u.href;
 }
 
-function addUrls(text) {
-  const now = Date.now();
-  for (const raw of text.split(/\s+/)) {
-    const url = canonical(raw);
-    if (!url) continue;
-    let item = items.find(i => i.url === url);
-    if (item?.hydratedAt && !item.error) continue;
-    if (item) {
-      delete item.error;
-      delete item.hydratedAt;
-    } else {
-      item = { url, domain: new URL(url).hostname.replace(/^www\./, ''), addedAt: now, sessionId: null };
-      items.push(item);
-    }
+// Find or create the item for a raw URL; undefined for anything but http(s).
+function upsert(raw) {
+  const url = canonical(raw);
+  if (!url) return undefined;
+  let item = items.find(i => i.url === url);
+  if (!item) {
+    item = { url, domain: new URL(url).hostname.replace(/^www\./, ''), addedAt: Date.now(), sessionId: null };
+    items.push(item);
+  }
+  return item;
+}
+
+function addUrls(raws) {
+  for (const raw of raws) {
+    const item = upsert(raw);
+    if (!item || (item.hydratedAt && !item.error)) continue;
+    delete item.error;
+    delete item.hydratedAt;
     paint(item);
     enqueue(item);
   }
+  save();
+}
+
+// Entry from the service worker (right-click add): a bare { url } to hydrate, or a page it
+// already extracted in place, which replaces whatever we had — live session data beats a
+// background tab.
+function receive(entry) {
+  if (!entry.hydratedAt) return addUrls([entry.url]);
+  const item = upsert(entry.url);
+  if (!item) return;
+  const { url, ...data } = entry;
+  delete item.error;
+  Object.assign(item, data);
+  paint(item);
   save();
 }
 
@@ -179,7 +197,7 @@ function paint(item) {
 // ---- wiring ----
 
 function submit() {
-  addUrls(input.value);
+  addUrls(input.value.split(/\s+/));
   input.value = '';
 }
 document.getElementById('add').onclick = submit;
@@ -192,11 +210,17 @@ document.getElementById('clear').onclick = e => {
 window.addEventListener('beforeunload', () => { if (liveTab != null) chrome.tabs.remove(liveTab); });
 
 (async () => {
-  ({ items = [] } = await chrome.storage.local.get('items'));
+  let pending;
+  ({ items = [], pending = [] } = await chrome.storage.local.get(['items', 'pending']));
   items.sort((a, b) => a.addedAt - b.addedAt);
   countEl.textContent = items.length;
   for (const item of items) {
     paint(item);
     if (!item.hydratedAt) enqueue(item); // interrupted last time
   }
+  // Right-click adds: parked in storage while no dashboard was open, messaged live otherwise.
+  // Listen only once items are loaded so an early message can't land in the throwaway array.
+  for (const entry of pending) receive(entry);
+  chrome.storage.local.remove('pending');
+  chrome.runtime.onMessage.addListener(entry => { receive(entry); });
 })();

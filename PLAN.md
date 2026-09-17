@@ -291,9 +291,7 @@ if (e.altKey && e.target.closest('a')) { e.preventDefault(); e.stopPropagation()
 `preventDefault()` **first thing** — Option+click is Chromium's "download link target" gesture and
 you need to kill it before anything else sees it.
 
-Then walk up from the anchor to the product card (2–4 parent levels, look for one containing both an
-`<img>` and price-looking text), grab image + title + price off the listing page. Usually good enough
-that you don't need to hydrate at all. Toast in the corner, no navigation.
+Then run the extractor/hydration queue, whatever makes the most sense. Keep it simple and snappy, so that this is just as easy as using cmd+click to open a tab.
 
 Memory: this runs on every page you visit. Keep it tiny — one listener, no polling, no
 MutationObserver, nothing running until you actually alt-click.
